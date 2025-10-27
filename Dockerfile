@@ -1,43 +1,44 @@
-# 1️⃣ استخدم صورة PHP الرسمية
+# ==========================
+#  Stage 1 - Build Dependencies
+# ==========================
+FROM composer:2 AS build
+
+WORKDIR /app
+
+# انسخ ملفات المشروع
+COPY . /app
+
+# نزّل dependences بتاعة PHP
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+
+# ==========================
+#  Stage 2 - Runtime Image
+# ==========================
 FROM php:8.2-fpm
 
-# 2️⃣ تثبيت الأدوات الأساسية وامتدادات PHP المطلوبة
+# نضيف بعض الأدوات المهمة
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    zip \
-    curl \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    nodejs \
-    npm \
-    && docker-php-ext-configure zip \
-    && docker-php-ext-install pdo pdo_mysql zip gd
+    zip unzip git curl libpng-dev libonig-dev libxml2-dev libzip-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# 3️⃣ تعيين مجلد العمل
 WORKDIR /var/www/html
 
-# 4️⃣ نسخ ملفات المشروع
-COPY . .
+# انسخ الملفات من مرحلة build
+COPY --from=build /app /var/www/html
 
-# 5️⃣ تثبيت Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# اعمل copy لملف env.example لو .env مش موجود
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
-# 6️⃣ تثبيت اعتمادات PHP
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+# Laravel setup
+RUN php artisan key:generate --force \
+    && php artisan config:clear \
+    && php artisan cache:clear \
+    && php artisan route:clear \
+    && php artisan view:clear
 
-# 7️⃣ تثبيت npm packages وبناء الواجهة (لو بتستخدم Vite أو Mix)
-RUN npm install && npm run build
-
-
-
-# 9️⃣ إعداد الصلاحيات
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# 🔟 فتح المنفذ
+# افتح البورت اللي Railway بيستخدمه (يسحب PORT تلقائي من البيئة)
 EXPOSE 8000
 
-# 1️⃣1️⃣ تشغيل السيرفر
-CMD php artisan serve --host=0.0.0.0 --port=8000
+# Start Laravel
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
