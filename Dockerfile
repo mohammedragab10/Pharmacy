@@ -31,8 +31,7 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev
 # 7️⃣ تثبيت npm packages وبناء الواجهة (لو بتستخدم Vite أو Mix)
 RUN npm install && npm run build
 
-# 8️⃣ توليد مفتاح Laravel
-RUN php artisan key:generate
+
 
 # 9️⃣ إعداد الصلاحيات
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
